@@ -3,20 +3,26 @@ import numpy as np
 
 app = Flask(__name__)
 
+# ---------------- HOME ----------------
 @app.route("/")
 def home():
     return "SpendingPartner AI Server is running 🚀"
 
+# ---------------- ANALYZE EXPENSES ----------------
 @app.route("/analyze", methods=["POST"])
 def analyze():
-    data = request.json
+    data = request.get_json()
 
-    expenses = data.get("expenses", [])
+    if not data or "expenses" not in data:
+        return jsonify({"error": "Invalid input format"}), 400
 
-    if not expenses:
+    expenses = data["expenses"]
+
+    if len(expenses) == 0:
         return jsonify({"error": "No expense data"}), 400
 
-    amounts = np.array([e["amount"] for e in expenses])
+    # Extract amounts
+    amounts = np.array([float(e["amount"]) for e in expenses])
 
     avg = float(np.mean(amounts))
     max_spent = float(np.max(amounts))
@@ -25,9 +31,12 @@ def analyze():
 
     return jsonify({
         "average_spend": round(avg, 2),
-        "highest_spend": max_spent,
-        "anomaly_detected": anomaly
+        "highest_spend": round(max_spent, 2),
+        "anomaly_detected": anomaly,
+        "reason": "Expense is unusually high compared to normal pattern"
+                  if anomaly else "Spending is within normal range"
     })
 
+# ---------------- RUN ----------------
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000)
