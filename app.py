@@ -14,29 +14,30 @@ def analyze():
     data = request.get_json()
 
     if not data or "expenses" not in data:
-        return jsonify({"error": "Invalid input format"}), 400
+        return jsonify({"error": "Invalid input"}), 400
 
     expenses = data["expenses"]
-
-    if len(expenses) == 0:
-        return jsonify({"error": "No expense data"}), 400
-
-    # Extract amounts
     amounts = np.array([float(e["amount"]) for e in expenses])
 
     avg = float(np.mean(amounts))
     max_spent = float(np.max(amounts))
 
-    anomaly = max_spent > avg * 2
+    anomaly = max_spent > avg * 1.5
+
+    if anomaly:
+        reason = f"Expense ₹{max_spent} is unusually high compared to your average ₹{round(avg,2)}"
+    else:
+        reason = "Spending is within normal range"
 
     return jsonify({
         "average_spend": round(avg, 2),
         "highest_spend": round(max_spent, 2),
         "anomaly_detected": anomaly,
-        "reason": "Expense is unusually high compared to normal pattern"
-                  if anomaly else "Spending is within normal range"
+        "reason": reason
     })
+
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
+
