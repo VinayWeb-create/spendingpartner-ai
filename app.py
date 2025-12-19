@@ -31,5 +31,6 @@ def analyze():
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)  genrate the complete with add the fetaures with past code 
+    app.run(host="0.0.0.0", port=5000)  
+
 
