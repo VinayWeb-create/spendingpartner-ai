@@ -33,8 +33,9 @@ def analyze():
 def risk():
     data = request.get_json()
     expenses = data.get("expenses", [])
+    total_budget = data.get("total_budget", 0)
 
-    if len(expenses) < 3:
+    if len(expenses) < 3 or total_budget <= 0:
         return jsonify({
             "risk_score": 10,
             "level": "Low",
@@ -42,22 +43,33 @@ def risk():
         })
 
     amounts = np.array([e["amount"] for e in expenses])
+
+    total_spent = np.sum(amounts)
     avg = np.mean(amounts)
-    spikes = np.sum(amounts > avg * 1.8)
 
-    risk_score = min(100, int((spikes / len(amounts)) * 100 + avg / 10))
+    # 1️⃣ Spike risk
+    spikes = np.sum(amounts > avg * 1.6)
+    spike_score = (spikes / len(amounts)) * 40   # max 40
 
-    level = "Low"
+    # 2️⃣ Burn risk (budget usage)
+    usage_percent = (total_spent / total_budget) * 100
+    burn_score = min(usage_percent * 0.6, 60)    # max 60
+
+    risk_score = int(min(100, spike_score + burn_score))
+
     if risk_score >= 70:
         level = "High"
     elif risk_score >= 40:
         level = "Medium"
+    else:
+        level = "Low"
 
     return jsonify({
         "risk_score": risk_score,
         "level": level,
-        "reason": f"{spikes} abnormal expenses detected"
+        "reason": f"{int(usage_percent)}% of budget used, {spikes} abnormal spends detected"
     })
+
 
 
 # ---------------- PREDICTION ----------------
@@ -85,6 +97,7 @@ def predict():
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)  
+
 
 
 
