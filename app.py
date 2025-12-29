@@ -93,10 +93,51 @@ def predict():
         "next_7_days_estimate": next_week,
         "message": f"You may spend around ₹{next_week} in the next 7 days"
     })
+#base line end point
+@app.route("/baseline/build", methods=["POST"])
+def build_baseline():
+    data = request.get_json()
+    expenses = data["expenses"]
+
+    amounts = np.array([e["amount"] for e in expenses])
+    dates = [e["created_at"] for e in expenses]
+
+    # --- Daily spend ---
+    daily = {}
+    for e in expenses:
+        day = e["created_at"][:10]
+        daily[day] = daily.get(day, 0) + e["amount"]
+
+    avg_daily = np.mean(list(daily.values()))
+    avg_txn = np.mean(amounts)
+    max_normal = np.percentile(amounts, 90)
+
+    # --- Frequency ---
+    days_active = len(daily)
+    freq = len(amounts) / max(days_active, 1)
+
+    # --- Hours ---
+    hours = [int(e["created_at"][11:13]) for e in expenses]
+    hour_counts = Counter(hours)
+    normal_hours = [h for h,_ in hour_counts.most_common(4)]
+
+    # --- Volatility ---
+    ratio = np.std(amounts) / avg_txn
+    volatility = "low" if ratio < 0.5 else "medium" if ratio < 1 else "high"
+
+    return jsonify({
+        "avg_daily_spend": round(avg_daily,2),
+        "avg_txn_amount": round(avg_txn,2),
+        "max_normal_txn": round(max_normal,2),
+        "daily_txn_frequency": round(freq,2),
+        "normal_hours": normal_hours,
+        "volatility": volatility
+    })
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)  
+
 
 
 
