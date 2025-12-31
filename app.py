@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 import numpy as np
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -134,9 +135,61 @@ def build_baseline():
         "volatility": volatility
     })
 
+@app.route("/secure-risk", methods=["POST"])
+def secure_risk():
+    data = request.get_json()
+
+    expenses = data.get("expenses", [])
+    total_budget = data.get("total_budget", 0)
+
+    # 👇 identity result from UserAuthSense
+    identity_risk = data.get("identity_risk", "LOW")
+
+    # ---- reuse your existing logic ----
+    if len(expenses) < 3 or total_budget <= 0:
+        finance_risk = "Low"
+        finance_score = 10
+    else:
+        amounts = np.array([e["amount"] for e in expenses])
+        total_spent = np.sum(amounts)
+        avg = np.mean(amounts)
+
+        spikes = np.sum(amounts > avg * 1.6)
+        spike_score = (spikes / len(amounts)) * 40
+        usage_percent = (total_spent / total_budget) * 100
+        burn_score = min(usage_percent * 0.6, 60)
+
+        finance_score = int(min(100, spike_score + burn_score))
+
+        if finance_score >= 70:
+            finance_risk = "High"
+        elif finance_score >= 40:
+            finance_risk = "Medium"
+        else:
+            finance_risk = "Low"
+
+    # ---- FINAL DECISION LOGIC (IMPORTANT) ----
+    if identity_risk == "HIGH" and finance_risk == "High":
+        action = "BLOCK"
+    elif identity_risk == "HIGH":
+        action = "VERIFY"
+    elif finance_risk == "High":
+        action = "WARN"
+    else:
+        action = "ALLOW"
+
+    return jsonify({
+        "finance_risk": finance_risk,
+        "finance_score": finance_score,
+        "identity_risk": identity_risk,
+        "final_action": action,
+        "timestamp": datetime.utcnow().isoformat()
+    })
+
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)  
+
 
 
 
